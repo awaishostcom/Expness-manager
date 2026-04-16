@@ -40,6 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: user.displayName || 'User',
             email: user.email || '',
             createdAt: Timestamp.now(),
+            currency: 'USD',
+            walletBalance: 0,
           };
           await setDoc(doc(db, 'users', user.uid), newProfile);
           setProfile(newProfile);

@@ -12,7 +12,11 @@ import {
   TrendingUp,
   Settings,
   Sun,
-  Moon
+  Moon,
+  Users,
+  Briefcase,
+  BookOpen,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { auth } from '../lib/firebase';
@@ -37,10 +41,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageCha
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'ledger', label: 'Cashbook Ledger', icon: BookOpen },
+    { id: 'wallet', label: 'My Wallet', icon: CreditCard },
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
     { id: 'expenses', label: 'Expenses', icon: ArrowDownLeft },
     { id: 'income', label: 'Income', icon: ArrowUpRight },
-    { id: 'accounts', label: 'Accounts', icon: Wallet },
     { id: 'budgets', label: 'Budgets', icon: PieChart },
+    { id: 'bills', label: 'Bills', icon: Receipt },
+    { id: 'staff', label: 'Staff', icon: Users },
+    { id: 'business', label: 'Business', icon: Briefcase },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

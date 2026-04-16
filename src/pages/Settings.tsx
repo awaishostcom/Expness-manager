@@ -12,15 +12,20 @@ import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { cn } from '../../lib/utils';
 
+import { CURRENCIES } from '../lib/currency';
+import { CurrencyCode } from '../types';
+
 export const Settings: React.FC = () => {
   const { user, profile } = useAuth();
   const { theme, setTheme } = useTheme();
   const [name, setName] = useState(profile?.name || '');
+  const [currency, setCurrency] = useState<CurrencyCode>(profile?.currency || 'USD');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (profile) {
       setName(profile.name);
+      setCurrency(profile.currency);
     }
   }, [profile]);
 
@@ -33,6 +38,7 @@ export const Settings: React.FC = () => {
       await updateProfile(user, { displayName: name });
       await updateDoc(doc(db, 'users', user.uid), {
         name,
+        currency,
       });
       toast.success('Profile updated successfully');
     } catch (error) {
@@ -69,6 +75,21 @@ export const Settings: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input id="email" value={profile?.email} disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Base Currency</Label>
+                    <select 
+                      id="currency"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:ring-2 focus:ring-primary"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} - {c.name} ({c.symbol})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <Button type="submit" disabled={loading}>

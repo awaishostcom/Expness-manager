@@ -19,7 +19,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../../components/ui/dialog';
 import { Plus, Receipt, Calendar as CalendarIcon, CheckCircle2, Circle, MoreVertical, Pencil, Trash2, Bell } from 'lucide-react';
-import { format, isAfter } from 'date-fns';
+import { formatCurrency } from '../lib/currency';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Badge } from '../../components/ui/badge';
@@ -28,7 +28,7 @@ import { Calendar } from '../../components/ui/calendar';
 import { cn } from '../../lib/utils';
 
 export const Bills: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [bills, setBills] = useState<Bill[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
@@ -39,6 +39,10 @@ export const Bills: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState<Date>(new Date());
   const [recurring, setRecurring] = useState(false);
+  const [companyName, setCompanyName] = useState('');
+  const [category, setCategory] = useState('');
+  const [referenceId, setReferenceId] = useState('');
+  const [frequency, setFrequency] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     if (!user) return;
@@ -54,6 +58,10 @@ export const Bills: React.FC = () => {
     setAmount('');
     setDueDate(new Date());
     setRecurring(false);
+    setCompanyName('');
+    setCategory('');
+    setReferenceId('');
+    setFrequency('monthly');
     setEditingBill(null);
   };
 
@@ -68,6 +76,10 @@ export const Bills: React.FC = () => {
       dueDate: Timestamp.fromDate(dueDate),
       status: editingBill ? editingBill.status : 'unpaid',
       recurring,
+      companyName,
+      category,
+      referenceId,
+      frequency,
       userId: user.uid
     };
 
@@ -118,8 +130,8 @@ export const Bills: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const displayCurrency = (val: number) => {
+    return formatCurrency(val, profile?.currency || 'USD');
   };
 
   const upcomingBills = bills.filter(b => b.status === 'unpaid');
@@ -147,13 +159,43 @@ export const Bills: React.FC = () => {
               <DialogTitle>{editingBill ? 'Edit Bill' : 'New Bill'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Bill Title</Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Internet Bill" required />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Bill Title</Label>
+                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Internet Bill" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company Name</Label>
+                  <Input id="company" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. AT&T" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input id="amount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input id="amount" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Input id="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Utilities" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ref">Reference ID</Label>
+                  <Input id="ref" value={referenceId} onChange={(e) => setReferenceId(e.target.value)} placeholder="e.g. #12345" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <select 
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value as any)}
+                  >
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Due Date</Label>
@@ -206,7 +248,7 @@ export const Bills: React.FC = () => {
             </div>
             <div>
               <p className="text-primary-foreground/80 text-sm font-medium uppercase tracking-wider">Upcoming Total</p>
-              <p className="text-3xl font-bold">{formatCurrency(totalUpcoming)}</p>
+              <p className="text-3xl font-bold">{displayCurrency(totalUpcoming)}</p>
             </div>
           </div>
           <div className="text-right">
@@ -260,7 +302,7 @@ export const Bills: React.FC = () => {
                       <p className={cn(
                         "font-bold",
                         bill.status === 'paid' ? "text-slate-400" : "text-slate-900"
-                      )}>{formatCurrency(bill.amount)}</p>
+                      )}>{displayCurrency(bill.amount)}</p>
                       <p className={cn(
                         "text-[10px] font-bold uppercase tracking-wider",
                         bill.status === 'paid' ? "text-emerald-500" : "text-rose-500"

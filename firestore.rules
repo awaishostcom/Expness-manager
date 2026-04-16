@@ -7,6 +7,8 @@
 //   - name: string (1-100 chars)
 //   - email: string (valid email format)
 //   - createdAt: timestamp
+//   - currency: string (USD, PKR, etc.)
+//   - walletBalance: number
 //
 // Collection: /users/{uid}/accounts/{accountId}
 // Fields:
@@ -15,30 +17,11 @@
 //   - balance: number
 //   - bankName: string (1-50 chars)
 //   - type: string (checking, savings, credit, other)
+//   - userId: string
+//   - sharedWith: list of strings (emails)
 //
 // Collection: /users/{uid}/transactions/{transactionId}
-// Fields:
-//   - title: string (1-100 chars)
-//   - amount: number (positive)
-//   - category: string (1-50 chars)
-//   - date: timestamp
-//   - accountId: string (valid account reference)
-//   - type: string (income, expense)
-//   - notes: string (optional, 0-500 chars)
-//
-// Collection: /users/{uid}/bills/{billId}
-// Fields:
-//   - title: string (1-100 chars)
-//   - amount: number (positive)
-//   - dueDate: timestamp
-//   - status: string (paid, unpaid)
-//   - recurring: bool
-//
-// Collection: /users/{uid}/budgets/{budgetId}
-// Fields:
-//   - category: string (1-50 chars)
-//   - limit: number (positive)
-//   - period: string (monthly)
+// ... (similar for other collections)
 //
 // ===============================================================
 
@@ -58,12 +41,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    function isSharedWith(sharedWith) {
+      return isAuthenticated() && request.auth.token.email in sharedWith;
     }
 
-    function isRecent(time) {
-      return time is timestamp && time <= request.time && time > request.time - duration.value(24, 'h');
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
     // ===============================================================
@@ -71,10 +54,12 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return data.keys().hasAll(['name', 'email', 'createdAt']) &&
+      return data.keys().hasAll(['name', 'email', 'createdAt', 'currency', 'walletBalance']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              isValidEmail(data.email) &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             data.currency in ["USD", "PKR", "INR", "SAR", "JPY", "CNY", "TRY", "EUR", "GBP"] &&
+             data.walletBalance is number;
     }
 
     function isValidAccount(data, userId) {
@@ -94,26 +79,17 @@ service cloud.firestore {
              data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
              data.date is timestamp &&
              data.accountId is string &&
-             data.type in ['income', 'expense'] &&
-             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+             data.type in ['income', 'expense'];
     }
 
-    function isValidBill(data, userId) {
-      return data.keys().hasAll(['title', 'amount', 'dueDate', 'status', 'recurring', 'userId']) &&
+    function isValidLedgerEntry(data, userId) {
+      return data.keys().hasAll(['clientId', 'amount', 'type', 'date', 'description', 'userId']) &&
              data.userId == userId &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.clientId is string &&
              data.amount is number && data.amount >= 0 &&
-             data.dueDate is timestamp &&
-             data.status in ['paid', 'unpaid'] &&
-             data.recurring is bool;
-    }
-
-    function isValidBudget(data, userId) {
-      return data.keys().hasAll(['category', 'limit', 'period', 'userId']) &&
-             data.userId == userId &&
-             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
-             data.limit is number && data.limit >= 0 &&
-             data.period == 'monthly';
+             data.type in ['in', 'out'] &&
+             data.date is timestamp &&
+             data.description is string;
     }
 
     // ===============================================================
@@ -126,7 +102,7 @@ service cloud.firestore {
       allow update: if isOwner(userId) && isValidUser(request.resource.data);
 
       match /accounts/{accountId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || isSharedWith(resource.data.sharedWith);
         allow create: if isOwner(userId) && isValidAccount(request.resource.data, userId);
         allow update: if isOwner(userId) && isValidAccount(request.resource.data, userId);
         allow delete: if isOwner(userId);
@@ -141,17 +117,57 @@ service cloud.firestore {
 
       match /bills/{billId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidBill(request.resource.data, userId);
-        allow update: if isOwner(userId) && isValidBill(request.resource.data, userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
       }
 
       match /budgets/{budgetId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidBudget(request.resource.data, userId);
-        allow update: if isOwner(userId) && isValidBudget(request.resource.data, userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
       }
+
+      match /ledger/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidLedgerEntry(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidLedgerEntry(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /clients/{clientId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /staff/{staffId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /meetings/{meetingId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /walletTransfers/{transferId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.fromUid || request.auth.uid == resource.data.toUid);
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.fromUid;
     }
 
     // Default deny

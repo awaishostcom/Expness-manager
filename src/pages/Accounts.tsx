@@ -22,10 +22,16 @@ import { Plus, Wallet, Building2, MoreVertical, Pencil, Trash2, CreditCard } fro
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 
+import { Share2, Users } from 'lucide-react';
+import { formatCurrency } from '../lib/currency';
+
 export const Accounts: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [sharingAccount, setSharingAccount] = useState<BankAccount | null>(null);
+  const [shareEmail, setShareEmail] = useState('');
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,6 +60,29 @@ export const Accounts: React.FC = () => {
     setEditingAccount(null);
   };
 
+  const handleShare = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !sharingAccount) return;
+    setLoading(true);
+    try {
+      const sharedWith = sharingAccount.sharedWith || [];
+      if (!sharedWith.includes(shareEmail)) {
+        await updateDoc(doc(db, 'users', user.uid, 'accounts', sharingAccount.id), {
+          sharedWith: [...sharedWith, shareEmail]
+        });
+        toast.success(`Account shared with ${shareEmail}`);
+      } else {
+        toast.info('Already shared with this user');
+      }
+      setIsShareDialogOpen(false);
+      setShareEmail('');
+    } catch (error) {
+      toast.error('Failed to share account');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -65,7 +94,8 @@ export const Accounts: React.FC = () => {
       balance: parseFloat(balance),
       number,
       type,
-      userId: user.uid
+      userId: user.uid,
+      sharedWith: editingAccount?.sharedWith || []
     };
 
     try {
@@ -105,8 +135,8 @@ export const Accounts: React.FC = () => {
     }
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const displayCurrency = (val: number) => {
+    return formatCurrency(val, profile?.currency || 'USD');
   };
 
   return (
@@ -199,6 +229,12 @@ export const Accounts: React.FC = () => {
                       <DropdownMenuItem className="text-xs font-medium" onClick={() => handleEdit(account)}>
                         <Pencil className="mr-2 h-3 w-3" /> Edit
                       </DropdownMenuItem>
+                      <DropdownMenuItem className="text-xs font-medium" onClick={() => {
+                        setSharingAccount(account);
+                        setIsShareDialogOpen(true);
+                      }}>
+                        <Share2 className="mr-2 h-3 w-3" /> Share
+                      </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-xs font-medium text-red-600 focus:text-red-600"
                         onClick={() => handleDelete(account.id)}
@@ -210,7 +246,12 @@ export const Accounts: React.FC = () => {
                 </div>
                 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-slate-900">{account.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-slate-900">{account.name}</h3>
+                    {account.sharedWith && account.sharedWith.length > 0 && (
+                      <Users className="h-3 w-3 text-blue-500" />
+                    )}
+                  </div>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-tight">
                     {account.bankName} {account.number && `• ${account.number.slice(-4)}`} • {account.type}
                   </p>
@@ -219,7 +260,7 @@ export const Accounts: React.FC = () => {
                 <div className="mt-6 pt-6 border-t border-slate-50">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Current Balance</p>
                   <div className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(account.balance)}
+                    {formatCurrency(account.balance, profile?.currency)}
                   </div>
                 </div>
               </CardContent>
@@ -227,6 +268,30 @@ export const Accounts: React.FC = () => {
           ))
         )}
       </div>
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Account</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleShare} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Share this account with another user by their email address. They will be able to view entries.
+            </p>
+            <div className="space-y-2">
+              <Label>User Email</Label>
+              <Input 
+                type="email" 
+                placeholder="user@example.com" 
+                value={shareEmail} 
+                onChange={e => setShareEmail(e.target.value)} 
+                required 
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>Share Account</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

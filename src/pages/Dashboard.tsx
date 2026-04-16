@@ -36,8 +36,10 @@ import {
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '../../lib/utils';
 
+import { formatCurrency } from '../lib/currency';
+
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,21 +104,21 @@ export const Dashboard: React.FC = () => {
 
   const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const displayCurrency = (val: number) => {
+    return formatCurrency(val, profile?.currency || 'USD');
   };
 
   return (
     <div className="space-y-8 pb-8">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <Card className="bg-card border-border shadow-sm rounded-xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Balance</p>
               <Wallet className="h-4 w-4 text-primary opacity-50" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(totalBalance)}</div>
+            <div className="text-2xl font-bold text-foreground">{displayCurrency(totalBalance)}</div>
             <p className="text-[11px] text-emerald-500 font-medium mt-1 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +2.4% from last month
@@ -127,21 +129,32 @@ export const Dashboard: React.FC = () => {
         <Card className="bg-card border-border shadow-sm rounded-xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Wallet Balance</p>
+              <CreditCard className="h-4 w-4 text-primary opacity-50" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{displayCurrency(profile?.walletBalance || 0)}</div>
+            <p className="text-[11px] text-muted-foreground font-medium mt-1">Available for transfers</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border shadow-sm rounded-xl">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Monthly Income</p>
               <ArrowUpRight className="h-4 w-4 text-emerald-500 opacity-50" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(monthlyIncome)}</div>
+            <div className="text-2xl font-bold text-foreground">{displayCurrency(monthlyIncome)}</div>
             <p className="text-[11px] text-emerald-500 font-medium mt-1">On track</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border shadow-sm rounded-xl sm:col-span-2 lg:col-span-1">
+        <Card className="bg-card border-border shadow-sm rounded-xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Monthly Expenses</p>
               <ArrowDownLeft className="h-4 w-4 text-rose-500 opacity-50" />
             </div>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(monthlyExpense)}</div>
+            <div className="text-2xl font-bold text-foreground">{displayCurrency(monthlyExpense)}</div>
             <p className="text-[11px] text-rose-500 font-medium mt-1">8% higher than average</p>
           </CardContent>
         </Card>

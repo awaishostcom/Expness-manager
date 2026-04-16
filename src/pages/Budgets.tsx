@@ -25,8 +25,10 @@ import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
 
+import { formatCurrency } from '../lib/currency';
+
 export const Budgets: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -119,8 +121,8 @@ export const Budgets: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const displayCurrency = (val: number) => {
+    return formatCurrency(val, profile?.currency || 'USD');
   };
 
   return (
@@ -220,8 +222,8 @@ export const Budgets: React.FC = () => {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Monthly Budget</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-bold text-slate-900">{formatCurrency(spent)}</span>
-                        <span className="text-xs text-slate-400"> / {formatCurrency(budget.limit)}</span>
+                        <span className="text-sm font-bold text-slate-900">{displayCurrency(spent)}</span>
+                        <span className="text-xs text-slate-400"> / {displayCurrency(budget.limit)}</span>
                       </div>
                     </div>
 

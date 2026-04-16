@@ -30,8 +30,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { Calendar } from '../../components/ui/calendar';
 import { cn } from '../../lib/utils';
 
+import { formatCurrency } from '../lib/currency';
+
 export const Income: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -45,6 +47,7 @@ export const Income: React.FC = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [accountId, setAccountId] = useState('');
   const [notes, setNotes] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +86,7 @@ export const Income: React.FC = () => {
     setDate(new Date());
     setAccountId('');
     setNotes('');
+    setAttachmentUrl('');
     setEditingTransaction(null);
   };
 
@@ -100,6 +104,7 @@ export const Income: React.FC = () => {
       accountId,
       type: 'income',
       notes,
+      attachmentUrl,
       userId: user.uid
     };
 
@@ -259,6 +264,11 @@ export const Income: React.FC = () => {
                 <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add details..." />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="attachment">Attachment URL (Receipt/Screenshot)</Label>
+                <Input id="attachment" value={attachmentUrl} onChange={(e) => setAttachmentUrl(e.target.value)} placeholder="https://..." />
+              </div>
+
               <DialogFooter>
                 <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading || !accountId}>
                   {loading ? 'Processing...' : editingTransaction ? 'Update Income' : 'Save Income'}
@@ -317,7 +327,7 @@ export const Income: React.FC = () => {
                       {format(t.date.toDate(), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell className="px-6 py-4 text-sm font-bold text-right text-emerald-600">
-                      +{formatCurrency(t.amount)}
+                      +{formatCurrency(t.amount, profile?.currency)}
                     </TableCell>
                     <TableCell className="px-6 py-4">
                       <DropdownMenu>
