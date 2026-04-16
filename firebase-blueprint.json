@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "createdAt"]
+    },
+    "Account": {
+      "title": "Bank Account",
+      "description": "A bank account linked to a user",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "number": { "type": "string" },
+        "balance": { "type": "number" },
+        "bankName": { "type": "string" },
+        "type": { "type": "string", "enum": ["checking", "savings", "credit", "other"] }
+      },
+      "required": ["name", "balance", "bankName"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "An income or expense record",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "accountId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["title", "amount", "category", "date", "accountId", "type"]
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "A recurring or one-time bill",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["paid", "unpaid"] },
+        "recurring": { "type": "boolean" }
+      },
+      "required": ["title", "amount", "dueDate", "status"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly budget limit for a category",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "limit": { "type": "number" },
+        "period": { "type": "string", "enum": ["monthly"] }
+      },
+      "required": ["category", "limit", "period"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/users/{uid}/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "Bank accounts for a user"
+    },
+    "/users/{uid}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Income and expense transactions"
+    },
+    "/users/{uid}/bills/{billId}": {
+      "schema": "Bill",
+      "description": "Bills tracking"
+    },
+    "/users/{uid}/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "Budget limits"
+    }
+  }
+}

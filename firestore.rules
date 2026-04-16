@@ -1,0 +1,162 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: /users/{uid}
+// Fields:
+//   - name: string (1-100 chars)
+//   - email: string (valid email format)
+//   - createdAt: timestamp
+//
+// Collection: /users/{uid}/accounts/{accountId}
+// Fields:
+//   - name: string (1-50 chars)
+//   - number: string (optional, 0-50 chars)
+//   - balance: number
+//   - bankName: string (1-50 chars)
+//   - type: string (checking, savings, credit, other)
+//
+// Collection: /users/{uid}/transactions/{transactionId}
+// Fields:
+//   - title: string (1-100 chars)
+//   - amount: number (positive)
+//   - category: string (1-50 chars)
+//   - date: timestamp
+//   - accountId: string (valid account reference)
+//   - type: string (income, expense)
+//   - notes: string (optional, 0-500 chars)
+//
+// Collection: /users/{uid}/bills/{billId}
+// Fields:
+//   - title: string (1-100 chars)
+//   - amount: number (positive)
+//   - dueDate: timestamp
+//   - status: string (paid, unpaid)
+//   - recurring: bool
+//
+// Collection: /users/{uid}/budgets/{budgetId}
+// Fields:
+//   - category: string (1-50 chars)
+//   - limit: number (positive)
+//   - period: string (monthly)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isRecent(time) {
+      return time is timestamp && time <= request.time && time > request.time - duration.value(24, 'h');
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidEmail(data.email) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidAccount(data, userId) {
+      return data.keys().hasAll(['name', 'balance', 'bankName', 'type', 'userId']) &&
+             data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 50 &&
+             data.balance is number &&
+             data.bankName is string && data.bankName.size() > 0 && data.bankName.size() <= 50 &&
+             data.type in ['checking', 'savings', 'credit', 'other'];
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll(['title', 'amount', 'category', 'date', 'accountId', 'type', 'userId']) &&
+             data.userId == userId &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
+             data.date is timestamp &&
+             data.accountId is string &&
+             data.type in ['income', 'expense'] &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidBill(data, userId) {
+      return data.keys().hasAll(['title', 'amount', 'dueDate', 'status', 'recurring', 'userId']) &&
+             data.userId == userId &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             data.dueDate is timestamp &&
+             data.status in ['paid', 'unpaid'] &&
+             data.recurring is bool;
+    }
+
+    function isValidBudget(data, userId) {
+      return data.keys().hasAll(['category', 'limit', 'period', 'userId']) &&
+             data.userId == userId &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
+             data.limit is number && data.limit >= 0 &&
+             data.period == 'monthly';
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+
+      match /accounts/{accountId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAccount(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidAccount(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTransaction(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidTransaction(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /bills/{billId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidBill(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidBill(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /budgets/{budgetId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidBudget(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidBudget(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
